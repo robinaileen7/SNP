@@ -4,12 +4,11 @@ from scipy.stats import norm
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
-def fixed_pt_iter_BS(E, D, vol):
+def fixed_pt_iter_BS(E, D, vol, T):
     # Fixed-point iteration to get asset value from equity and debt
     tol = 0.00001
-    T = 1
     t = 0
-    V_0 = E+D
+    V_0 = E + D
     d_t = (np.log(V_0/D)+((vol**2)/2)*(T-t))/(vol*np.sqrt(T-t))
     V = (E+D*norm.cdf(d_t-vol*np.sqrt(T-t)))/norm.cdf(d_t)
     while np.max(abs(V-V_0)/abs(V))>tol:
@@ -27,11 +26,12 @@ def anova_2(df):
     anova_df['k'] = anova_df['sum_sq'] / anova_df['TSS']
     return anova_df['k']
 
+
 if __name__ == "__main__":
     df_ED = pd.read_excel(r'Data\df_ED.xlsx')
     E = np.array(df_ED['E_t'])
     D = np.array(df_ED['D_t'])
-    print(fixed_pt_iter_BS(E, D, 0.2))
+    print(fixed_pt_iter_BS(E, D, 0.2, T=1))
     df_ANOVA = pd.read_excel(r'Data\df_ANOVA.xlsx')
-    print(anova_2(df_ANOVA))
+    print(anova_2(df_ANOVA)['TMC'])
 

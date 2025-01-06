@@ -1,4 +1,8 @@
 import numpy as np
+import tool
+import param
+import pandas as pd
+import matplotlib.pyplot as plt
 
 class GBM_asset_sim:
     def __init__(self, miu, sigma, miu_1, sigma_1, delta, cro, Z_0, S_0, T, t, time_step, N):
@@ -42,6 +46,7 @@ class GBM_asset_sim:
         OU_array = np.zeros((self.N, n))
         Z_array = np.zeros((self.N, n))
         S_shot_array = np.zeros((self.N, n))
+        S_shot_array[:, 0] = np.log(self.S_0)
         np.random.seed(10)
         W = np.random.normal(0, 1, (self.N, n))
         W_shot = np.random.normal(0, 1, (self.N, n))
@@ -54,10 +59,23 @@ class GBM_asset_sim:
 
 
 if __name__ == "__main__":
+    df_ED = pd.read_excel(r'Data\df_ED.xlsx')
+    E = df_ED['E_t']
+    D = df_ED['D_t']
+    data = np.array([E, D])
     time_step = 252
+    data_len = len(E)
     N = 10000
-    obj = GBM_asset_sim(miu=0.05, sigma=0.2, miu_1=0.05, sigma_1=0.2, delta=5, cro=0.003, Z_0=-10, S_0=100, T=1, t=0, time_step=time_step, N=N)
+    obj = param.GBM_param(time_step = time_step , data = data)
+    GBM_param = obj.optim()
+    df_ANOVA = pd.read_excel(r'Data\df_ANOVA.xlsx')
+    obj_2 = param.GBMSN_param(time_step = time_step , data = data, t = 1/time_step, T = data_len/time_step, k_s = tool.anova_2(df_ANOVA)['TMC'])
+    SN_param = obj_2.optim()
+    obj = GBM_asset_sim(miu=GBM_param[0], sigma=GBM_param[1], miu_1=SN_param[0], sigma_1=SN_param[1], delta=SN_param[2], cro=SN_param[3], Z_0=SN_param[4], S_0=100, T=1, t=0, time_step=time_step, N=N)
     simple_path = obj.simple_GBM()
     shot_path = obj.shot_GBM()
-    print(simple_path[-1])
-    print(shot_path[-1])
+    x = np.arange(0, time_step + 1, 1)
+    plt.plot(x, simple_path, label='GBM')
+    plt.plot(x, shot_path, label='GBM+SN')
+    plt.legend()
+    plt.show()
