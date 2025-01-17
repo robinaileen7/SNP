@@ -1,4 +1,5 @@
 import tool
+import optim
 import numpy as np
 from scipy.optimize import minimize
 from scipy.stats import norm
@@ -27,9 +28,12 @@ class GBM_param:
 
     def optim(self):
         par = [0.05, 0.2]
-        bds = [(0.001, 1), (0.001, 1)]
-        result = minimize(self.likelihood, par, bounds=bds)
-        return result.x
+        # bds = [(0.001, 1), (0.001, 1)]
+        bds = np.array([[0.001, 1], [0.001, 1]])
+        # result = minimize(self.likelihood, par, bounds=bds)
+        result = optim.optim_non_drvt(x_0=par, x_range=bds, my_function=self.likelihood).min_line_search()
+        # return result.x
+        return result[0]
 
 class GBMSN_param:
     def __init__(self, time_step, data, t, T, k_s):
@@ -50,20 +54,23 @@ class GBMSN_param:
         var = (sigma ** 2) * self.dt() + (cro/(2*delta))*(1-np.exp(-2*delta*self.dt()))-((2*sigma*np.sqrt(cro))/delta)*(1-np.exp(-delta*self.dt()))*self.k_s
         sigma_shot = np.sqrt(sigma**2+cro-2*sigma*np.sqrt(cro)*self.k_s)
         V_hat = tool.fixed_pt_iter_BS(self.data[0], self.data[1], sigma_shot, T = len(self.data[0])/self.time_step)
-        d_hat = (np.log(V_hat)/self.data[1]+(sigma**2+cro-2*sigma*np.sqrt(cro)*self.k_s)*self.T/2)/(np.sqrt(self.T)*np.sqrt(sigma**2+cro-2*sigma*np.sqrt(cro)*self.k_s))
+        d_hat = ((np.log(V_hat)/self.data[1]+(sigma**2+cro-2*sigma*np.sqrt(cro)*self.k_s))*self.T/2)/(np.sqrt(self.T)*np.sqrt(sigma**2+cro-2*sigma*np.sqrt(cro)*self.k_s))
         n = len(self.data[0])-1
         A = np.sum(0.5*(np.log(V_hat[1:]/V_hat[:-1])-mean)**2/var)
         B = (n/2)*np.log(var)
         C= np.sum(np.log(V_hat[1:]))
         D = np.sum(np.log(norm.cdf(d_hat[1:])))
         llh = (n/2)*np.log(2*np.pi)+A+B+C+D
-        return -llh
+        return llh
 
     def optim(self):
         par = [0.03, 0.01, 0.5, 0.01, 0]
         bds = [(0.01, 0.1), (0.001, 0.3), (0.001, 5), (0.001, 0.2), (-5, 5)]
+        #bds = np.array([[0.001, 0.5], [0.001, 1], [0.001, 5], [-5, 5], [-5, 5]])
         result = minimize(self.likelihood, par, bounds=bds, method='Powell')
+        #result = optim.optim_non_drvt(x_0=par, x_range=bds, my_function=self.likelihood).min_line_search()
         return result.x
+        #return result
 
 if __name__ == "__main__":
     df_ED = pd.read_excel(r'Data\df_ED.xlsx')
