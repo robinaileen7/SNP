@@ -1,9 +1,7 @@
 import tool
 import optim
 import numpy as np
-from scipy.optimize import minimize
 from scipy.stats import norm
-import pandas as pd
 
 def safe_sqrt(x):
     if x >=0:
@@ -33,13 +31,10 @@ class GBM_param:
         return -llh
 
     def optim(self):
-        par = [0.05, 0.2]
-        # bds = [(0.001, 1), (0.001, 1)]
         bds = np.array([[0.001, 1], [0.001, 1]])
-        # result = minimize(self.likelihood, par, bounds=bds)
-        result = optim.optim_non_drvt(x_0=par, x_range=bds, my_function=self.likelihood, mat='NA').min_line_search(x_0=par, tol_Brent=0.001, tol_gr=0.001)
-        # result = optim.optim_non_drvt(x_0=par, x_range=bds, my_function=self.likelihood).mod_Powell()
-        # return result.x
+        par = np.mean(bds,axis=1)
+        result = optim.optim_non_drvt(x_0=par, x_range=bds, my_function=self.likelihood).mod_Powell()
+        print(result[0])
         return result[0]
 
 class GBMSN_param:
@@ -71,36 +66,22 @@ class GBMSN_param:
         return llh
 
     def optim(self):
-        # par = [0.03, 0.01, 0.5, 0.01, 0]
-        # par = [0.02, 0.2, 2, 0.5, 0]
-        # bds = [(0.01, 0.1), (0.001, 0.3), (0.001, 5), (0.001, 0.2), (-5, 5)]
-        bds = np.array([[0.001, 0.05], [0.001, 0.3], [0.001, 10], [0.001, 1], [-10, 10]])
+        bds = np.array([[0.01, 0.1], [0.001, 0.5], [0.001, 100], [0.001, 100], [-10, 10]])
         par = np.mean(bds,axis=1)
-        n_vector = 10
-        e_list_list = []
-        for j in range(len(par)):
-            incr = (par[j] - bds[j][0]) / n_vector
-            e_list = []
-            for i in range(1, n_vector + 1):
-                e_list.append(i * incr)
-                e_list.append(-i * incr)
-            e_list_list.append(e_list)
-        e_input = np.array([[x[i] for x in e_list_list] for i in range(len(e_list_list[0]))])
-        # result = minimize(self.likelihood, par, bounds=bds, method='Powell')
-        # result = optim.optim_non_drvt(x_0=par, x_range=bds, my_function=self.likelihood).min_line_search(x_0=x_0)
-        result = optim.optim_non_drvt(x_0=par, x_range=bds, my_function=self.likelihood, mat=e_input).mod_Powell()
-        #return result.x
+        result = optim.optim_non_drvt(x_0=par, x_range=bds, my_function=self.likelihood).mod_Powell()
         return result[0]
 
 if __name__ == "__main__":
-    df_ED = pd.read_excel(r'Data\df_ED.xlsx')
-    E = df_ED['E_t']
-    D = df_ED['D_t']
-    data = np.array([E, D])
+    import config
     time_step = 252
-    data_len = len(E)
+
+    data = config.data
+    est_T = config.data_len
+    df_ANOVA = config.df_ANOVA
+    Company = config.company
+
     obj = GBM_param(time_step = time_step , data = data)
     print(obj.optim())
-    df_ANOVA = pd.read_excel(r'Data\df_ANOVA.xlsx')
-    obj_2 = GBMSN_param(time_step = time_step , data = data, t = 1/time_step, T = data_len/time_step, k_s = tool.anova_2(df_ANOVA)['TMC'])
-    print(obj_2.optim())
+
+    obj_SN = GBMSN_param(time_step = time_step , data = data, t = 1/time_step, T = est_T/time_step, k_s = tool.anova_2(df_ANOVA)[Company])
+    print(obj_SN.optim())

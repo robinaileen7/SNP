@@ -1,18 +1,29 @@
 import numpy as np
 from scipy.optimize import minimize
 
+# Implementation based on standard optimization algorithms (e.g., Golden Section, Brent, Powell)
+# Customized and written independently by me
+
 class optim_non_drvt:
     # This class collects optimization methods when f(x) doesn't have a derivative
 
-    def __init__(self, x_0, x_range, my_function, mat):
+    def __init__(self, x_0, x_range, my_function):
         self.x_0 = x_0
         self.x_range = x_range
         self.n = len(x_0)
         self.my_function = my_function
-        np.random.seed(10)
-        # self.mat = np.ones((self.n, self.n))
-        # self.mat = np.maximum(np.random.normal(0, 1, (self.n, self.n)), 0)
-        self.mat = mat
+
+    def mat(self):
+        n_vector = 100
+        e_list_list = []
+        for j in range(len(self.x_0)):
+            incr = (self.x_0[j] - self.x_range[j][0]) / n_vector
+            e_list = []
+            for i in range(1, n_vector + 1):
+                e_list.append(i * incr)
+                e_list.append(-i * incr)
+            e_list_list.append(e_list)
+        return np.array([[x[i] for x in e_list_list] for i in range(len(e_list_list[0]))])
 
     def golden_ratio(self, a_b, x, which_var, tol_gr):
         ratio_1 = 0.618
@@ -51,7 +62,9 @@ class optim_non_drvt:
 
     def Brent(self, x_0, which_var, tol_Brent, tol_gr):
         iter_Brent = 10000
+        # ax is the lower bnd of the nth variable
         ax = x_0[which_var][0]
+        # bx is the upper bnd of the nth variable
         bx = x_0[which_var][1]
         a = min(ax, bx)
         b = max(ax, bx)
@@ -94,16 +107,16 @@ class optim_non_drvt:
         return out_ls, self.my_function(out_ls)
 
     def mod_Powell(self):
-        iter_Powell = 1000
-        tol_Powell = 1
-        tol_Brent = 0.11
-        tol_gr = 0.11
+        iter_Powell = 10000
+        tol_Powell = 0.001
+        tol_Brent = 0.005
+        tol_gr = 0.005
         x_init = self.x_0.copy()
         f_init = self.my_function(x_init)
-        mat = self.mat.copy()
+        mat = self.mat()
         for j in range(iter_Powell):
-            print('Loop')
-            print(j)
+            # print('Loop')
+            # print(j)
             x_last = x_init.copy()
             f_x_last = f_init
             delta = 0
@@ -159,11 +172,17 @@ if __name__ == "__main__":
     def dy_my_function(x_0):
         x, y = x_0
         return 8 * y - 3
+
     x_0 = [0, 0]
     x_range = np.array([[-1, 1], [-1, 1]])
-    print(optim_non_drvt(x_0=x_0, x_range=x_range, my_function=my_function, mat='NA').min_line_search(x_0=x_0, tol_Brent=0.001, tol_gr=0.001))
+
+    res_Brent = optim_non_drvt(x_0=x_0, x_range=x_range, my_function=my_function).min_line_search(x_0=x_0, tol_Brent=0.001, tol_gr=0.001)
+    print("The minimum result achieved by Brent's Method is " + str(res_Brent[1]) + " with variables " + str(res_Brent[0]))
+
+    res_Powell = optim_non_drvt(x_0=x_0, x_range=x_range, my_function=my_function).mod_Powell()
+    print("The minimum result achieved by Modified Powell method is " + str(res_Powell[1]) + " with variables " + str(res_Powell[0]))
 
     # Compare result with scipy
     res = minimize(my_function, x_0, bounds=x_range, jac=[dx_my_function, dy_my_function])
-    print(res.x)
-    print(my_function(res.x))
+    print("The minimum result achieved by Python's minimize function is " + str(my_function(res.x)) + " with variables " + str(res.x))
+
